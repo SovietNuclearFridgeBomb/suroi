@@ -629,6 +629,8 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     readonly perks: PerkDefinition[] = [];
 
+    readonly perksDroppability: boolean[] = [];
+
    // updatedPerks: PerkDefinition[] = [];
 
     perkUpdateMap?: Map<PerkDefinition, number>; // key = perk, value = last updated
@@ -2105,6 +2107,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         if (this.perks.includes(perkDef)) return;
 
         this.perks.push(perkDef);
+        this.perksDroppability.push(perkDef.noDrop ? false : true);
 
         if ("updateInterval" in perkDef) {
             (this.perkUpdateMap ??= new Map<PerkDefinition, number>())
@@ -2282,7 +2285,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         const perkDef = Perks.reify(perk);
         if (!this.perks.includes(perkDef)) return;
 
-        removeFrom(this.perks, perkDef);
+        this.perksDroppability.splice(removeFrom(this.perks, perkDef), 1);
 
         if (this.hasPerk(PerkIds.Overdrive)) {
             this.removePerk(PerkIds.Overdrive);
@@ -3200,7 +3203,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         }
 
         // Drop perks
-        for (const perk of this.perks) {
+        /* for (const perk of this.perks) {
             if (!this.hasPerk(PerkIds.Infected)) {
                 if (!perk.noDrop) {
                     this.game.addLoot(perk, position, layer);
@@ -3208,7 +3211,17 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
                     this.game.addLoot(PerkIds.PlumpkinGamble, position, layer);
                 }
             }
-        }
+        } */
+
+        this.perks.forEach((perk, index) => {
+            if (!this.hasPerk(PerkIds.Infected)) {
+                if (perksDroppability[index]) {
+                    this.game.addLoot(perk, position, layer);
+                } else if (!perksDroppability[index] && perk.category === PerkCategories.Halloween) {
+                    this.game.addLoot(PerkIds.PlumpkinGamble, position, layer);
+                }
+            }
+        })
 
         // Disguise funnies
         if (this.activeDisguise !== undefined && !this.activeDisguise.indestructible) {
