@@ -261,6 +261,7 @@ function serializePlayerData(
 
     if (hasPerks) {
         strm.writeArray(perks, perk => Perks.writeToStream(strm, perk));
+        strm.writeBooleanGroup(...perksDroppability);
     }
 
     // if (hasUpdatedPerks) {
@@ -445,6 +446,7 @@ function deserializePlayerData(strm: SuroiByteStream): PlayerData {
 
     if (hasPerks) {
         data.perks = strm.readArray(() => Perks.readFromStream(strm));
+        data.perksDroppability = strm.readBooleanGroup().slice(0, data.perks.length);
     }
 
     // if (hasUpdatedPerks) {
@@ -569,6 +571,7 @@ export interface PlayerData {
     }
     activeC4s?: boolean
     perks?: PerkDefinition[]
+    perksDroppability?: boolean[]
   //  updatedPerks?: PerkDefinition[]
     teamID?: number
 }
