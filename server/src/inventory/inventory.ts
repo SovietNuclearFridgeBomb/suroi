@@ -567,14 +567,10 @@ export class Inventory {
         const definition = Loots.reify(itemString);
         const { idString, defType } = definition;
 
-        if (
-            (
-                !this.items.hasItem(idString)
-                && defType !== DefinitionType.Armor
-                && defType !== DefinitionType.Backpack
-                && defType !== DefinitionType.Perk
-            )
-            || definition.noDrop
+        if (!this.items.hasItem(idString)
+            && defType !== DefinitionType.Armor
+            && defType !== DefinitionType.Backpack
+            && defType !== DefinitionType.Perk
         ) return;
 
         switch (defType) {
@@ -676,7 +672,8 @@ export class Inventory {
             }
 
             case DefinitionType.Perk: {
-                if (!this.owner.hasPerk(definition) || this.owner.hasPerk(PerkIds.Infected)) return;
+                const perkIndex = this.owner.perks.indexOf(definition);
+                if (!this.owner.hasPerk(definition) || this.owner.hasPerk(PerkIds.Infected) || !this.owner.perksDroppability[perkIndex]) return;
                 this.owner.removePerk(definition);
                 this._dropItem(definition);
                 this.owner.dirty.perks = true;
