@@ -349,9 +349,10 @@ export function groupArray<In, Out>(target: In[], picker: (ele: In, index: numbe
  * @param array The array to iterate over.
  * @param value The value to check for.
  */
-export function removeFrom<T>(array: T[], value: NoInfer<T>): void {
+export function removeFrom<T>(array: T[], value: NoInfer<T>): number {
     const index = array.indexOf(value);
     if (index !== -1) array.splice(index, 1);
+    return index;
 }
 
 export class Timeout {
