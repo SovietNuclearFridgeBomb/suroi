@@ -1949,6 +1949,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
         if (player.dirty.perks || forceInclude) {
             playerData.perks = player.perks;
+            playerData.perksDroppability = player.perksDroppability;
         }
 
         // if (player.dirty.updatedPerks || forceInclude) {
@@ -2104,7 +2105,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     addPerk(perk: ReifiableDef<PerkDefinition>, droppable? : boolean): void {
         const perkDef = Perks.reify(perk);
-        droppable = droppable ?? !perkDef.noDrop
+        droppable ??= !perkDef.noDrop
         if (this.perks.includes(perkDef)) return;
 
         this.perks.push(perkDef);
