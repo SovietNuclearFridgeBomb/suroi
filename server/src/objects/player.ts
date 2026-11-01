@@ -2102,12 +2102,13 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
     //     }
     // }
 
-    addPerk(perk: ReifiableDef<PerkDefinition>): void {
+    addPerk(perk: ReifiableDef<PerkDefinition>, droppable? : boolean): void {
         const perkDef = Perks.reify(perk);
+        droppable = droppable ?? !perkDef.noDrop
         if (this.perks.includes(perkDef)) return;
 
         this.perks.push(perkDef);
-        this.perksDroppability.push(perkDef.noDrop ? false : true);
+        this.perksDroppability.push(droppable);
 
         if ("updateInterval" in perkDef) {
             (this.perkUpdateMap ??= new Map<PerkDefinition, number>())
