@@ -1228,7 +1228,7 @@ class UIManagerClass {
         //     this._perkSlots[index]?.children(".item-timer-text").show();
         // }
 
-        container.css("outline", !droppability || PerkManager.has(PerkIds.Infected) || Game.spectating ? "none" : "");
+        container.css("outline", !(droppability ?? !perkDef.noDrop) || PerkManager.has(PerkIds.Infected) || Game.spectating ? "none" : "");
 
         const flashAnimationDuration = 3000; // ms
 
