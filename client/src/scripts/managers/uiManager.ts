@@ -629,6 +629,7 @@ class UIManagerClass {
             items,
             activeC4s,
             perks,
+            perksDroppability,
            // updatedPerks,
             blockEmoting
         } = data;
@@ -870,7 +871,7 @@ class UIManagerClass {
 
                 if (oldPerks[i] !== newPerk) {
                     // this.perkTimers?.delete(oldPerks[i]);
-                    this.updatePerkSlot(newPerk, i);
+                    this.updatePerkSlot(newPerk, i, data.perksDroppability[i]);
                 }
             }
         }
@@ -1148,7 +1149,7 @@ class UIManagerClass {
 
     readonly _perkSlots: Array<JQuery<HTMLDivElement> | undefined> = [];
     private readonly _animationTimeouts: Array<number | undefined> = [];
-    updatePerkSlot(perkDef: PerkDefinition, index: number): void {
+    updatePerkSlot(perkDef: PerkDefinition, index: number, droppability?: boolean): void {
         if (index > GameConstants.player.maxPerks) index = 0; // overwrite stuff ig?
         // no, write a hud that can handle it
 
@@ -1227,7 +1228,7 @@ class UIManagerClass {
         //     this._perkSlots[index]?.children(".item-timer-text").show();
         // }
 
-        container.css("outline", perkDef.noDrop || PerkManager.has(PerkIds.Infected) || Game.spectating ? "none" : "");
+        container.css("outline", !droppability || PerkManager.has(PerkIds.Infected) || Game.spectating ? "none" : "");
 
         const flashAnimationDuration = 3000; // ms
 
@@ -1266,7 +1267,9 @@ class UIManagerClass {
 
             itemSlot.toggleClass("has-item", isPresent);
 
-            itemSlot.css("outline", count === 0 || itemDef.noDrop || Game.spectating ? "none" : "");
+            if (itemDef.defType !== DefinitionType.Perk) {
+                itemSlot.css("outline", count === 0 || itemDef.noDrop || Game.spectating ? "none" : "");
+            }
 
             if ((itemDef.defType === DefinitionType.Ammo || itemDef.defType === DefinitionType.HealingItem) && itemDef.hideUnlessPresent) {
                 itemSlot.css("visibility", isPresent ? "visible" : "hidden");
