@@ -635,7 +635,6 @@ const perks = [
         damageMod: 1.1,
         soundMod: 75,
         highlightDuration: 5000,
-        noDrop: true,
         infectedEffectIgnore: true
     },
     {
@@ -643,7 +642,6 @@ const perks = [
         name: "Experimental Forcefield",
         defType: DefinitionType.Perk,
         category: PerkCategories.Hunted,
-        noDrop: true,
         shieldRegenRate: 1,
         shieldRespawnTime: 20e3, // seconds
 
@@ -658,7 +656,6 @@ const perks = [
         name: "Thermal Goggles",
         defType: DefinitionType.Perk,
         category: PerkCategories.Hunted,
-        noDrop: true,
         detectionRadius: 100,
         infectedEffectIgnore: true
     },
@@ -670,7 +667,6 @@ const perks = [
         quality: PerkQualities.Negative,
         plumpkinGambleIgnore: true,
         infectedEffectIgnore: true,
-        noDrop: true,
 
         particle: "charged_particle",
         activatedSound: "overdrive",
