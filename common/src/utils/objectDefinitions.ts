@@ -103,10 +103,11 @@ export enum DefinitionType {
     Melee,
     Obstacle,
     Perk,
+    Role,
     Scope,
     Skin,
     SyncedParticle,
-    Throwable
+    Throwable,
 }
 
 export interface ObjectDefinition {
