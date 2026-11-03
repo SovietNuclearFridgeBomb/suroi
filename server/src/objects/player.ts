@@ -3217,9 +3217,9 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
         this.perks.forEach((perk, index) => {
             if (!this.hasPerk(PerkIds.Infected)) {
-                if (perksDroppability[index]) {
+                if (this.perksDroppability[index]) {
                     this.game.addLoot(perk, position, layer);
-                } else if (!perksDroppability[index] && perk.category === PerkCategories.Halloween) {
+                } else if (!this.perksDroppability[index] && perk.category === PerkCategories.Halloween) {
                     this.game.addLoot(PerkIds.PlumpkinGamble, position, layer);
                 }
             }
