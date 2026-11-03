@@ -631,6 +631,8 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     readonly perksDroppability: boolean[] = [];
 
+    readonly role: string = "None"
+
    // updatedPerks: PerkDefinition[] = [];
 
     perkUpdateMap?: Map<PerkDefinition, number>; // key = perk, value = last updated
