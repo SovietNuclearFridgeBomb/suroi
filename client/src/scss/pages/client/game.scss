@@ -1435,8 +1435,9 @@
     }
 
     .perk-name {
-        font-size: 20px;
+        font-size: 40px;
         padding: 5px;
+        font-style: italic;
     }
 
     @media screen and (max-width: variables.$screen_large) and (max-height: 750px) {
