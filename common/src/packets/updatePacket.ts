@@ -34,6 +34,7 @@ function serializePlayerData(
         items,
         activeC4s,
         perks,
+        perksDroppability,
       //  updatedPerks,
         teamID,
         blockEmoting
