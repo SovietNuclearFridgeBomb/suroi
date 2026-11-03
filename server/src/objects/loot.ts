@@ -446,7 +446,7 @@ export class Loot<Def extends LootDefinition = LootDefinition> extends BaseGameO
                 }
 
                 if (definition.perk !== undefined) {
-                    player.addPerk(definition.perk);
+                    player.addPerk(definition.perk, false);
                 }
 
                 player.setDirty();
@@ -457,7 +457,7 @@ export class Loot<Def extends LootDefinition = LootDefinition> extends BaseGameO
                 player.inventory.backpack = definition;
 
                 if (definition.perk !== undefined) {
-                    player.addPerk(definition.perk);
+                    player.addPerk(definition.perk, false);
                 }
 
                 player.setDirty();
@@ -486,12 +486,10 @@ export class Loot<Def extends LootDefinition = LootDefinition> extends BaseGameO
             }
 
             case DefinitionType.Perk: {
-                const perkToRemove = player.perks.find(perk => perk.category === definition.category);
+                const perkToRemove = player.perks.find((perk, index) => perk.category === definition.category && player.perksDroppability[index]);
 
                 if (perkToRemove !== undefined) {
-                    if (!perkToRemove.noDrop) {
-                        createNewItem({ type: perkToRemove, count: 1 });
-                    }
+                    createNewItem({ type: perkToRemove, count: 1 });
                     player.removePerk(perkToRemove);
                 }
 
