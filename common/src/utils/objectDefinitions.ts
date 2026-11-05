@@ -103,7 +103,7 @@ export enum DefinitionType {
     Melee,
     Obstacle,
     Perk,
-    Role,
+    PromotionalRole,
     Scope,
     Skin,
     SyncedParticle,
