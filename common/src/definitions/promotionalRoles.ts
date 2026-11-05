@@ -12,21 +12,21 @@ import { type ThrowableDefinition } from "./items/throwables";
 
 
 type RoleGun = {
-  idString: ReifiableDef<GunDefinition>
+  idString: string
   preloadAmmo?: number
   fillInv?: boolean
-} | ReifiableDef<GunDefinition> | NullString
+} | ReifiableDef<GunDefinition>
 
 type RoleItem<T extends ObjectDefinition> = {idString: ReferenceTo<T>, amount: number};
 
-export interface RoleDefinition extends ObjectDefinition {
+export interface PromotionalRoleDefinition extends ObjectDefinition {
   readonly defType: DefinitionType.Role
   readonly perks?: ReifiableDef<PerkDefinition>[]
   readonly skin?: ReifiableDef<SkinDefinition>
   readonly vest?: ReifiableDef<ArmorDefinition>
   readonly helmet?: ReifiableDef<ArmorDefinition>
   readonly backpack?: ReifiableDef<BackpackDefinition>
-  readonly gun?: [RoleGun, RoleGun]
+  readonly gun?: [RoleGun, RoleGun] | RoleGun
   readonly melee?: ReifiableDef<MeleeDefinition>
   readonly killFeed?: {
     promote?: boolean // Player promoted to Role!
@@ -42,11 +42,11 @@ export interface RoleDefinition extends ObjectDefinition {
   }
 } // map indicators and promotion/dead sounds will be calculaeted outside of this
 
-export const Roles = new ObjectDefinitions<RoleDefinition>([
+export const promotionalRoles = new ObjectDefinitions<PromotionalRoleDefinition>([
   {
     idString: "juggernaut", // test example
     name: "Juggernaut",
-    defType: DefinitionType.Role,
+    defType: DefinitionType.PromotionalRole,
     perks: ["experimental_forcefield", "tactical_reload", "extended_mags", "flechettes"],
     vest: "tactical_helmet",
     helmet: "tactical_vest",
