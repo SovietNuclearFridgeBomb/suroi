@@ -2473,10 +2473,10 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         const { perks, skin, vest, helmet, backpack, gun, melee, inventory } = roleDef;
 
         // color name
-        if (roleDef.killFeed?.color !== undefined) {
+        /* if (roleDef.killFeed?.color !== undefined) {
             this.hasColor = true;
             this.nameColor = roleDef.killFeed.color;
-        }
+        } */
 
         // giving players stuffs
         if (perks) {
