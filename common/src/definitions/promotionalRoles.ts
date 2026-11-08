@@ -1,4 +1,4 @@
-import { DefinitionType, ObjectDefinitions, type ObjectDefinition, const NullString, type ReferenceTo, type ReifiableDef } from "../utils/objectDefinitions";
+import { DefinitionType, ObjectDefinitions, type ObjectDefinition, type ReferenceTo, type ReifiableDef } from "../utils/objectDefinitions";
 import { type GunDefinition } from "./items/guns";
 import { type MeleeDefinition } from "./items/melees";
 import { type PerkDefinition } from "./items/perks";
@@ -9,6 +9,7 @@ import { type HealingItemDefinition } from "./items/healingItems";
 import { type AmmoDefinition } from "./items/ammos";
 import { type ScopeDefinition } from "./items/scopes";
 import { type ThrowableDefinition } from "./items/throwables";
+import { type MapIndicatorDefinition } from "./mapIndicators";
 
 
 type RoleGun = {
@@ -20,14 +21,14 @@ type RoleGun = {
 type RoleItem<T extends ObjectDefinition> = {idString: ReferenceTo<T>, amount: number};
 
 export interface PromotionalRoleDefinition extends ObjectDefinition {
-  readonly defType: DefinitionType.Role
-  readonly perks?: ReifiableDef<PerkDefinition>[]
-  readonly skin?: ReifiableDef<SkinDefinition>
-  readonly vest?: ReifiableDef<ArmorDefinition>
-  readonly helmet?: ReifiableDef<ArmorDefinition>
-  readonly backpack?: ReifiableDef<BackpackDefinition>
+  readonly defType: DefinitionType.PromotionalRole
+  readonly perks?: ReferenceTo<PerkDefinition>[]
+  readonly skin?: ReferenceTo<SkinDefinition>
+  readonly vest?: ReferenceTo<ArmorDefinition>
+  readonly helmet?: ReferenceTo<ArmorDefinition>
+  readonly backpack?: ReferenceTo<BackpackDefinition>
   readonly gun?: [RoleGun, RoleGun] | RoleGun
-  readonly melee?: ReifiableDef<MeleeDefinition>
+  readonly melee?: ReferenceTo<MeleeDefinition>
   readonly killFeed?: {
     promote?: boolean // Player promoted to Role!
     dead?: boolean // The Role is dead!
@@ -37,8 +38,12 @@ export interface PromotionalRoleDefinition extends ObjectDefinition {
   readonly inventory?: {
     healingItem?: RoleItem<HealingItemDefinition>[]
     ammo?: RoleItem<AmmoDefinition>[]
-    scope?: RoleItem<ScopeDefinition>[]
+    scope?: ReferenceTo<ScopeDefinition>[]
     throwable?: RoleItem<ThrowableDefinition>[]
+  }
+  readonly indicator?: {
+    alive?: ReferenceTo<MapIndicatorDefinition>
+    dead?: ReferenceTo<MapIndicatorDefinition>
   }
 } // map indicators and promotion/dead sounds will be calculaeted outside of this
 
@@ -51,6 +56,9 @@ export const promotionalRoles = new ObjectDefinitions<PromotionalRoleDefinition>
     vest: "tactical_helmet",
     helmet: "tactical_vest",
     backpack: "tactical_backpack",
-    gun: ["mg5", "negev"]
+    gun: ["mg5", "negev"],
+    indicator: {
+      alive: "juggernaut_indicator"
+    }
   }
 ])
