@@ -567,8 +567,8 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     readonly role?: string;
     readonly isDev: boolean;
-    readonly hasColor: boolean;
-    readonly nameColor: number;
+    hasColor: boolean;
+    nameColor: number;
 
     /**
      * Used to make players invulnerable for 5 seconds after spawning or until they move
@@ -817,7 +817,8 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
             this.inventory.unlock(slot);
             // check wehther i have to do this
             this.inventory.dropWeapon(slot, true);
-            this.inventory.replaceWeapon(slot, primaryItem, true);
+            this.inventory.replaceWeapon(slot, Guns.fromString(roleGun), true);
+            primaryItem = this.inventory.getWeapon(slot) as GunItem;
         }
 
         const primaryDefinition = primaryItem.definition;
@@ -2147,7 +2148,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         }
 
         if (this.hasPerk(PerkIds.HollowPoints) && this.hasPerk(PerkIds.ExperimentalForcefield) && this.hasPerk(PerkIds.ThermalGoggles)) {
-            this.addPerk(PerkIds.Overdrive);
+            this.addPerk(PerkIds.Overdrive, false);
         }
 
         // easter egg
@@ -2471,6 +2472,12 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
         const { perks, skin, vest, helmet, backpack, gun, melee, inventory } = roleDef;
 
+        // color name
+        if (roleDef.killFeed?.color !== undefined) {
+            this.hasColor = true;
+            this.nameColor = roleDef.killFeed.color;
+        }
+
         // giving players stuffs
         if (perks) {
             for (const perk of perks) {
@@ -2546,22 +2553,23 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
                 }
             }
         }
-
-        this.promotionalRole = undefined;
-        this.dirty.promotionalRole = true;
-        this.setDirty();
-
+        // yeooooo
         if (previousRole.indicator?.dead) {
-            if (this.mapIndicator) {
+            /* if (this.mapIndicator) {
+                this.mapIndicator.definition = MapIndicators.fromString(previousRole.indicator.dead);
                 this.mapIndicator.updatePosition(this.position);
             } else {
                 this.mapIndicator = new MapIndicator(this.game, previousRole.indicator.dead, this.position);
                 this.game.mapIndicators.push(this.mapIndicator);
-            }
-            this.mapIndicator.dead = true;
-        } else {
-            this.mapIndicator = undefined;
+            } */
+            const deadIndicator = new MapIndicator(this.game, previousRole.indicator.dead, this.position);
+            this.game.mapIndicators.push(deadIndicator);
         }
+        this.promotionalRole = undefined;
+        this.dirty.promotionalRole = true;
+        // this.mapIndicator?.definitionDirty = true;
+        this.mapIndicator = undefined;
+        this.setDirty();
         // assuming other dirty tags are handled inside the called functions
         // note: also announce role dead in killfeed cuz this will be called before the player die too but this wont kill the player by design
     }
@@ -2573,7 +2581,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         const vestIndicator = vest?.mapIndicator;
         const backpackIndicator = backpack.mapIndicator;
         let indicator = roleIndicator;
-
+        
         if (!indicator) {
             const specialEquipmentCount = [helmetIndicator, vestIndicator, backpackIndicator].filter((i) => i !== undefined).length;
 
@@ -2593,7 +2601,8 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
             }
 
             if (this.hasPerk(PerkIds.PriorityTarget)) indicator = "priority_target";
-        } else if (indicator) {
+        }
+        if (indicator) {
             if (this.mapIndicator) {
                 this.mapIndicator.definition = MapIndicators.fromString(indicator);
                 this.mapIndicator.definitionDirty = true;
@@ -2603,8 +2612,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
                 this.mapIndicator = new MapIndicator(this.game, indicator, this.position);
                 this.game.mapIndicators.push(this.mapIndicator);
             }
-        }
-        if (!indicator && this.mapIndicator) {
+        } else if (this.mapIndicator){
             this.mapIndicator.dead = true;
             this.mapIndicator = undefined;
         }
