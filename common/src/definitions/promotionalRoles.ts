@@ -47,7 +47,7 @@ export interface PromotionalRoleDefinition extends ObjectDefinition {
   }
 } // map indicators and promotion/dead sounds will be calculaeted outside of this
 
-export const promotionalRoles = new ObjectDefinitions<PromotionalRoleDefinition>([
+export const PromotionalRoles = new ObjectDefinitions<PromotionalRoleDefinition>([
   {
     idString: "juggernaut", // test example
     name: "Juggernaut",
@@ -55,7 +55,7 @@ export const promotionalRoles = new ObjectDefinitions<PromotionalRoleDefinition>
     perks: ["experimental_forcefield", "tactical_reload", "extended_mags", "flechettes"],
     vest: "tactical_helmet",
     helmet: "tactical_vest",
-    backpack: "tactical_backpack",
+    backpack: "tactical_pack",
     gun: ["mg5", "negev"],
     indicator: {
       alive: "juggernaut_indicator"
