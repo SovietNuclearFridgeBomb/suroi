@@ -8,6 +8,7 @@ import { Guns, Tier, type GunDefinition } from "@common/definitions/items/guns";
 import { HealingItems, HealType } from "@common/definitions/items/healingItems";
 import { Melees, type MeleeDefinition } from "@common/definitions/items/melees";
 import { PerkCategories, PerkData, PerkIds, Perks, type PerkDefinition } from "@common/definitions/items/perks";
+import { PromotionalRoles, type PromotionalRoleDefinition } from "@common/definitions/promotionalRoles";
 import { DEFAULT_SCOPE, Scopes, type ScopeDefinition } from "@common/definitions/items/scopes";
 import { Skins, type SkinDefinition } from "@common/definitions/items/skins";
 import { Throwables, type ThrowableDefinition } from "@common/definitions/items/throwables";
@@ -449,6 +450,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         layer: true,
         activeC4s: true,
         perks: true,
+        promotionalRole: true,
      //   updatedPerks: true,
         teamID: true
     };
@@ -631,9 +633,9 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     readonly perksDroppability: boolean[] = [];
 
-    readonly role: string = "None"
+    promotionalRole: PromotionalRoleDefinition | undefined;
 
-   // updatedPerks: PerkDefinition[] = [];
+    // updatedPerks: PerkDefinition[] = [];
 
     perkUpdateMap?: Map<PerkDefinition, number>; // key = perk, value = last updated
 
@@ -790,22 +792,47 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         this.updateAndApplyModifiers();
     }
 
-    giveGun(idString: ReferenceTo<GunDefinition>): void {
-        const primaryItem = this.inventory.getWeapon(this.inventory.appendWeapon(idString)) as GunItem;
-        if (!primaryItem) return;
+    giveGun(roleGun: ReifiableDef<GunDefinition> | {
+                  idString: ReferenceTo<GunDefinition>;
+                  preloadAmmo?: number;
+                  fillInv?: boolean;
+              },
+        slot?: number): void {
+        let primaryItem: GunItem;
+        let idString: ReferenceTo<GunDefinition>;
+        let preloadAmmo: number | undefined = undefined;
+        let fillInv: boolean | undefined = true;
+        if (typeof roleGun === "string") {
+            idString = roleGun;
+        } else if (typeof roleGun === "object") {
+            ({ idString, preloadAmmo, fillInv } = roleGun);
+        } else return;
+        if (slot === undefined) {
+            primaryItem = this.inventory.getWeapon(this.inventory.appendWeapon(idString)) as GunItem;
+            if (!primaryItem) {
+                this.inventory.dropWeapon(0, true);
+                primaryItem = this.inventory.getWeapon(this.inventory.appendWeapon(idString)) as GunItem;
+            }
+        } else {
+            this.inventory.unlock(slot);
+            // check wehther i have to do this
+            this.inventory.dropWeapon(slot, true);
+            this.inventory.replaceWeapon(slot, primaryItem, true);
+        }
+
         const primaryDefinition = primaryItem.definition;
 
-        if (this.hasPerk("extended_mags") && primaryDefinition.extendedCapacity !== undefined) {
+        if (preloadAmmo !== undefined) {
+            primaryItem.ammo = preloadAmmo;
+        } else if (this.hasPerk("extended_mags") && primaryDefinition.extendedCapacity !== undefined) {
             primaryItem.ammo = primaryDefinition.extendedCapacity;
         } else {
             primaryItem.ammo = primaryDefinition.capacity;
         }
 
-        if (!Ammos.fromString(primaryDefinition.ammoType).ephemeral) {
-            this.inventory.items.setItem(
-                primaryDefinition.ammoType,
-                this.inventory.backpack.maxCapacity[primaryDefinition.ammoType]
-            );
+        if (!Ammos.fromString(primaryDefinition.ammoType).ephemeral && fillInv === true) {
+            this.inventory.items.setItem(primaryDefinition.ammoType, this.inventory.backpack.maxCapacity[primaryDefinition.ammoType]);
+            this.dirty.items = true;
         }
     }
 
@@ -2105,19 +2132,18 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
     //     }
     // }
 
-    addPerk(perk: ReifiableDef<PerkDefinition>, droppable? : boolean): void {
+    addPerk(perk: ReifiableDef<PerkDefinition>, droppable?: boolean): void {
         const perkDef = Perks.reify(perk);
-        droppable ??= !perkDef.noDrop
+        droppable ??= !perkDef.noDrop;
         if (this.perks.includes(perkDef)) return;
 
         this.perks.push(perkDef);
         this.perksDroppability.push(droppable);
 
         if ("updateInterval" in perkDef) {
-            (this.perkUpdateMap ??= new Map<PerkDefinition, number>())
-                .set(perkDef, this.game.now);
+            (this.perkUpdateMap ??= new Map<PerkDefinition, number>()).set(perkDef, this.game.now);
 
-           // this.updatePerk(perkDef);
+            // this.updatePerk(perkDef);
         }
 
         if (this.hasPerk(PerkIds.HollowPoints) && this.hasPerk(PerkIds.ExperimentalForcefield) && this.hasPerk(PerkIds.ThermalGoggles)) {
@@ -2134,26 +2160,26 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         // ! evil starts here
         // some perks need to perform setup when added
         switch (perkDef.idString) {
-            case PerkIds.PlumpkinGamble: { // AW DANG IT
+            case PerkIds.PlumpkinGamble: {
+                // AW DANG IT
                 this.removePerk(perk);
 
-                const halloweenPerks = Perks.definitions.filter(perkDef =>
-                    !perkDef.plumpkinGambleIgnore && perkDef.category === PerkCategories.Halloween
-                );
+                const halloweenPerks = Perks.definitions.filter((perkDef) => !perkDef.plumpkinGambleIgnore && perkDef.category === PerkCategories.Halloween);
 
                 this.addPerk(pickRandomInArray(halloweenPerks));
                 break;
             }
-            case PerkIds.PlumpkinShuffle: { // LMAo rip ur items blud
+            case PerkIds.PlumpkinShuffle: {
+                // LMAo rip ur items blud
                 this.removePerk(perk);
                 this.action?.cancel();
 
-                const vests = Armors.definitions.filter(armor => armor.armorType === ArmorType.Vest && !armor.noDrop && !armor.perk),
-                      helmets = Armors.definitions.filter(armor => armor.armorType === ArmorType.Helmet && !armor.noDrop && !armor.perk),
-                      backpacks = Backpacks.definitions.filter(backpack => !backpack.perk),
-                      guns = Guns.definitions.filter(gun => !gun.devItem && !gun.noSwap),
-                      melees = Melees.definitions.filter(melee => !melee.noDrop && !melee.devItem),
-                      skins = Skins.definitions.filter(skin => !skin.rolesRequired && !skin.noDrop && !skin.grassTint);
+                const vests = Armors.definitions.filter((armor) => armor.armorType === ArmorType.Vest && !armor.noDrop && !armor.perk),
+                    helmets = Armors.definitions.filter((armor) => armor.armorType === ArmorType.Helmet && !armor.noDrop && !armor.perk),
+                    backpacks = Backpacks.definitions.filter((backpack) => !backpack.perk),
+                    guns = Guns.definitions.filter((gun) => !gun.devItem && !gun.noSwap),
+                    melees = Melees.definitions.filter((melee) => !melee.noDrop && !melee.devItem),
+                    skins = Skins.definitions.filter((skin) => !skin.rolesRequired && !skin.noDrop && !skin.grassTint);
 
                 this.inventory.helmet = pickRandomInArray(helmets);
                 this.inventory.vest = pickRandomInArray(vests);
@@ -2178,12 +2204,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
             case PerkIds.Costumed: {
                 const { choices } = PerkData[PerkIds.Costumed];
 
-                this.activeDisguise = Obstacles.fromString(
-                    weightedRandom(
-                        Object.keys(choices),
-                        Object.values(choices)
-                    )
-                );
+                this.activeDisguise = Obstacles.fromString(weightedRandom(Object.keys(choices), Object.values(choices)));
 
                 this.emitLowHealthParticles = this.activeDisguise.explosion !== undefined && this._health / this._maxHealth < 0.3; // 30%
                 this.setDirty();
@@ -2281,6 +2302,10 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         this.dirty.perks = true;
     }
 
+    perkDroppabilityOf(perk: ReferenceTo<PerkDefinition>): boolean | undefined {
+        return this.perksDroppability[this.perks.indexOf(Perks.fromString(perk))];
+    }
+
     hasPerk(perk: ReifiableDef<PerkDefinition>): boolean {
         return this.perks.includes(Perks.reify(perk));
     }
@@ -2303,7 +2328,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
                 this.perkUpdateMap = undefined;
             }
 
-           // removeFrom(this.updatedPerks, perkDef);
+            // removeFrom(this.updatedPerks, perkDef);
         }
 
         // ! evil starts here
@@ -2356,9 +2381,10 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
                 this.targetHitCountExpiration = undefined;
                 break;
             }
-            case PerkIds.Infected: { // evil
+            case PerkIds.Infected: {
+                // evil
                 this.removePerk(PerkIds.Necrosis);
-                const perkToRemove = this.perks.find(perk => perk.category !== PerkCategories.Infection && !perk.infectedEffectIgnore);
+                const perkToRemove = this.perks.find((perk) => perk.category !== PerkCategories.Infection && !perk.infectedEffectIgnore);
                 if (perkToRemove !== undefined) this.removePerk(perkToRemove);
 
                 const immunity = PerkData[PerkIds.Immunity];
@@ -2398,7 +2424,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         this.updateAndApplyModifiers();
         this.dirty.perks = true;
     }
-
+    
     mapPerk<Name extends ReferenceTo<PerkDefinition>, U>(
         perk: Name | (PerkDefinition & { readonly idString: Name }),
         mapper: (data: PerkDefinition & { readonly idString: Name }) => U
@@ -2422,39 +2448,163 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         return defaultValue;
     }
 
+    promoteTo(role: string): void {
+        const roleDef = PromotionalRoles.fromString(role);
+        if (this.promotionalRole === roleDef) return;
+
+        // previous role clean
+        // dont call demote() plz plz
+        // dont drop backpack
+        const previousRole = this.promotionalRole;
+        if (previousRole) {
+            if (this.inventory.helmet?.noDrop && Armors.fromString(previousRole.helmet ?? "") === this.inventory.helmet) this.inventory.dropItem(this.inventory.helmet);
+            if (this.inventory.vest?.noDrop && Armors.fromString(previousRole.vest ?? "") === this.inventory.vest) this.inventory.dropItem(this.inventory.vest);
+
+            if (previousRole.perks) {
+                for (const rolePerk of previousRole.perks) {
+                    if (this.hasPerk(rolePerk) && !this.perkDroppabilityOf(rolePerk)) {
+                        this.removePerk(rolePerk);
+                    }
+                }
+            }
+        }
+
+        const { perks, skin, vest, helmet, backpack, gun, melee, inventory } = roleDef;
+
+        // giving players stuffs
+        if (perks) {
+            for (const perk of perks) {
+                this.addPerk(perk, false);
+            }
+        }
+        if (skin) {
+            this.inventory.dropItem(this.loadout.skin);
+            this.loadout.skin = Skins.fromString(skin);
+        }
+        if (vest) {
+            this.inventory.vest = Armors.fromString(vest);
+        }
+        if (helmet) {
+            this.inventory.helmet = Armors.fromString(helmet);
+        }
+        if (backpack) {
+            this.inventory.backpack = Backpacks.fromString(backpack);
+        }
+        // oi remember to stop using nullstring for weapon instead its either array or single
+        if (gun) {
+            if (Array.isArray(gun)) {
+                [0, 1].forEach((slot) => this.giveGun(gun[slot], slot));
+            } else {
+                this.giveGun(gun);
+            }
+        }
+        if (melee) {
+            this.inventory.unlock(2);
+            this.inventory.addOrReplaceWeapon(2, Melees.reify(melee));
+        }
+        if (inventory) {
+            for (const item of inventory.healingItem ?? []) {
+                this.inventory.items.incrementItem(item.idString, item.amount);
+            }
+            for (const item of inventory.ammo ?? []) {
+                this.inventory.items.incrementItem(item.idString, item.amount);
+            }
+            for (const item of inventory.scope ?? []) {
+                this.inventory.items.setItem(item, 1);
+            }
+            for (const item of inventory.throwable ?? []) {
+                this.giveThrowable(item.idString, item.amount);
+            }
+            this.dirty.items = true;
+        }
+
+        this.health = this.maxHealth;
+        this.promotionalRole = roleDef;
+        this.dirty.promotionalRole = true;
+        this.setDirty();
+        this.updateMapIndicator();
+    }
+
+    isPromotionalRole(role: string): boolean {
+        return this.promotionalRole === PromotionalRoles.fromString(role);
+    }
+
+    demote(): void {
+        const previousRole = this.promotionalRole;
+        if (previousRole === undefined) return;
+
+        if (this.inventory.helmet?.noDrop && Armors.fromString(previousRole.helmet ?? "") === this.inventory.helmet) {
+            this.inventory.helmet = undefined;
+        }
+        if (this.inventory.vest?.noDrop && Armors.fromString(previousRole.vest ?? "") === this.inventory.vest) {
+            this.inventory.vest = undefined;
+        }
+        if (previousRole.perks) {
+            for (const rolePerk of previousRole.perks) {
+                if (this.hasPerk(rolePerk) && !this.perkDroppabilityOf(rolePerk)) {
+                    this.removePerk(rolePerk);
+                }
+            }
+        }
+
+        this.promotionalRole = undefined;
+        this.dirty.promotionalRole = true;
+        this.setDirty();
+
+        if (previousRole.indicator?.dead) {
+            if (this.mapIndicator) {
+                this.mapIndicator.updatePosition(this.position);
+            } else {
+                this.mapIndicator = new MapIndicator(this.game, previousRole.indicator.dead, this.position);
+                this.game.mapIndicators.push(this.mapIndicator);
+            }
+            this.mapIndicator.dead = true;
+        } else {
+            this.mapIndicator = undefined;
+        }
+        // assuming other dirty tags are handled inside the called functions
+        // note: also announce role dead in killfeed cuz this will be called before the player die too but this wont kill the player by design
+    }
+
     updateMapIndicator(): void {
+        const roleIndicator = this.promotionalRole?.indicator?.alive;
         const { helmet, vest, backpack } = this.inventory;
         const helmetIndicator = helmet?.mapIndicator;
         const vestIndicator = vest?.mapIndicator;
         const backpackIndicator = backpack.mapIndicator;
-        const specialEquipmentCount = [helmetIndicator, vestIndicator, backpackIndicator].filter(i => i !== undefined).length;
-        let indicator: string | undefined;
-        switch (specialEquipmentCount) {
-            case 0:
-                break;
-            case 1:
-                if (helmetIndicator) indicator = helmetIndicator;
-                else if (vestIndicator) indicator = vestIndicator;
-                else if (backpackIndicator) indicator = backpackIndicator;
-                break;
-            case 2:
-            case 3:
-            default:
-                indicator = "juggernaut_indicator";
-                break;
-        }
+        let indicator = roleIndicator;
 
-        if (this.hasPerk(PerkIds.PriorityTarget)) indicator = "priority_target";
+        if (!indicator) {
+            const specialEquipmentCount = [helmetIndicator, vestIndicator, backpackIndicator].filter((i) => i !== undefined).length;
 
-        if (indicator) {
+            switch (specialEquipmentCount) {
+                case 0:
+                    break;
+                case 1:
+                    if (helmetIndicator) indicator = helmetIndicator;
+                    else if (vestIndicator) indicator = vestIndicator;
+                    else if (backpackIndicator) indicator = backpackIndicator;
+                    break;
+                case 2:
+                case 3:
+                default:
+                    indicator = "juggernaut_indicator";
+                    break;
+            }
+
+            if (this.hasPerk(PerkIds.PriorityTarget)) indicator = "priority_target";
+        } else if (indicator) {
             if (this.mapIndicator) {
                 this.mapIndicator.definition = MapIndicators.fromString(indicator);
                 this.mapIndicator.definitionDirty = true;
+                this.mapIndicator.dead = false;
+                this.mapIndicator.updatePosition(this.position);
             } else {
                 this.mapIndicator = new MapIndicator(this.game, indicator, this.position);
                 this.game.mapIndicators.push(this.mapIndicator);
             }
-        } else if (this.mapIndicator) {
+        }
+        if (!indicator && this.mapIndicator) {
             this.mapIndicator.dead = true;
             this.mapIndicator = undefined;
         }
@@ -2996,6 +3146,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         this.canDespawn = false;
         this._team?.setDirty();
 
+        if (this.promotionalRole) this.demote();
         if (this.mapIndicator) this.mapIndicator.dead = true;
 
         const action = this.beingRevivedBy?.action;
