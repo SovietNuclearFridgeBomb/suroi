@@ -1179,7 +1179,7 @@ class UIManagerClass {
                     </div>
                     <strong class="perk-name">${perkName}</strong>
                 `)
-                .fadeIn(5000);
+                .fadeIn(PERK_MESSAGE_FADE_TIME);
         }
 
         const container = this._perkSlots[index] ??= $<HTMLDivElement>(`#perk-slot-${index}`);
@@ -1228,7 +1228,6 @@ class UIManagerClass {
         //     this._perkSlots[index]?.children(".item-timer").show();
         //     this._perkSlots[index]?.children(".item-timer-text").show();
         // }
-        console.log(droppability);
         container.css("outline", !(droppability ?? !perkDef.noDrop) || PerkManager.has(PerkIds.Infected) || Game.spectating ? "none" : "");
 
         const flashAnimationDuration = 3000; // ms
