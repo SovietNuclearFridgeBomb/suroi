@@ -1171,6 +1171,7 @@ class UIManagerClass {
             interactMsg.fadeOut(PERK_MESSAGE_FADE_TIME);
 
             inventoryMsg
+                .stop(true, true)
                 .fadeOut(0)
                 .html(`
                     <div id="perk" style="background-image: url(${lootBg});">
@@ -1178,7 +1179,7 @@ class UIManagerClass {
                     </div>
                     <strong class="perk-name">${perkName}</strong>
                 `)
-                .fadeIn(PERK_MESSAGE_FADE_TIME);
+                .fadeIn(5000);
         }
 
         const container = this._perkSlots[index] ??= $<HTMLDivElement>(`#perk-slot-${index}`);
@@ -1227,7 +1228,7 @@ class UIManagerClass {
         //     this._perkSlots[index]?.children(".item-timer").show();
         //     this._perkSlots[index]?.children(".item-timer-text").show();
         // }
-
+        console.log(droppability);
         container.css("outline", !(droppability ?? !perkDef.noDrop) || PerkManager.has(PerkIds.Infected) || Game.spectating ? "none" : "");
 
         const flashAnimationDuration = 3000; // ms
