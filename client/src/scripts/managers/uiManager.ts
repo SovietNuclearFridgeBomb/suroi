@@ -861,6 +861,7 @@ class UIManagerClass {
         if (perks) {
             const oldPerks = Array.from(PerkManager.perks);
             PerkManager.perks = perks;
+            this.updatePerkQueue();
             for (let i = 0; i < GameConstants.player.maxPerks; i++) {
                 const newPerk = perks[i];
 
@@ -1163,8 +1164,6 @@ class UIManagerClass {
             perkSrc = `./img/game/perks/${folder}/${perkDef.idString}.svg`,
             perkName = translate(perkDef.idString as unknown as TranslationKeys);
 
-        const { killMsgModal, inventoryMsg, interactMsg } = this.ui;
-
         const container = this._perkSlots[index] ??= $<HTMLDivElement>(`#perk-slot-${index}`);
 
         let _duration: number;
@@ -1226,10 +1225,20 @@ class UIManagerClass {
         }, flashAnimationDuration);
     }
 
-    perkAnimActive = undefined;
+    perkAnimActive: PerkDefinition | undefined = undefined;
     private _perkQueue: PerkDefinition[] = [];
     private _currentQueueTimeout: number | undefined;
+    updatePerkQueue(): void {
+        this._perkQueue = this._perkQueue.filter(perk => PerkManager.has(perk));
+        if (!PerkManager.has(this.perkAnimActive)) this.skipPerkAnim() // skips the current perk anim if the perk is removed mid anim
+    }
     queuePerkAnim(perkDef: PerkDefinition): void {
+        const { killMsgModal, interactMsg } = this.ui;
+        if (!Game.spectating) {
+            clearTimeout(Game.inventoryMsgTimeout);
+            killMsgModal.fadeOut(PERK_MESSAGE_FADE_TIME);
+            interactMsg.fadeOut(PERK_MESSAGE_FADE_TIME);
+        }
         this._perkQueue.push(perkDef)
         this.cyclePerkAnim()
     }
@@ -1260,11 +1269,10 @@ class UIManagerClass {
                 .fadeIn(PERK_MESSAGE_FADE_TIME);
         const flashAnimationDuration = 3000; // ms
         this._currentQueueTimeout = window.setTimeout(() => {
-            inventoryMsg.fadeOut(PERK_MESSAGE_FADE_TIME);
-            window.setTimeout(() => {
+            inventoryMsg.fadeOut(PERK_MESSAGE_FADE_TIME, () => {
                 this.perkAnimActive = undefined;
                 this.cyclePerkAnim() // mile high run that shit back bitch im stylish 🔥
-            }, PERK_MESSAGE_FADE_TIME) // ok this should executes AFTER the fade
+            });
         }, flashAnimationDuration);
     }
     skipPerkAnim(): void{
@@ -1274,7 +1282,7 @@ class UIManagerClass {
         this.cyclePerkAnim();
     }
     clearPerkAnim() {
-        if (this.perkAnimActive === true) {
+        if (this.perkAnimActive) {
             this.ui.inventoryMsg.stop(true, true)
             this.perkAnimActive = undefined;
         }
