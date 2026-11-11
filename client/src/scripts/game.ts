@@ -1001,7 +1001,7 @@ export const Game = new (class Game {
             case PacketType.Pickup: {
                 const { message, item } = packet;
 
-                if (message !== undefined) {
+                if (message !== undefined && !UIManager.perkAnimActive) {
                     const { inventoryMsg } = UIManager.ui;
                     inventoryMsg.text(translate(this._inventoryMessageMap[message])).fadeOut(0).fadeIn(250);
 
