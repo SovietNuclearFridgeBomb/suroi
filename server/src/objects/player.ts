@@ -1,5 +1,5 @@
 import { AnimationType, GameConstants, InputActions, Layer, ObjectCategory, PlayerActions, SpectateActions } from "@common/constants";
-import { type BadgeDefinition } from "@common/definitions/badges";
+import { Badges, type BadgeDefinition } from "@common/definitions/badges";
 import { Emotes, type EmoteDefinition } from "@common/definitions/emotes";
 import { Ammos } from "@common/definitions/items/ammos";
 import { ArmorType, Armors } from "@common/definitions/items/armors";
@@ -9,6 +9,7 @@ import { HealingItems, HealType } from "@common/definitions/items/healingItems";
 import { Melees, type MeleeDefinition } from "@common/definitions/items/melees";
 import { PerkCategories, PerkData, PerkIds, Perks, type PerkDefinition } from "@common/definitions/items/perks";
 import { PromotionalRoles, type PromotionalRoleDefinition } from "@common/definitions/promotionalRoles";
+import { PromotionalRolePacket } from "@common/packets/promotionalRolePacket";
 import { DEFAULT_SCOPE, Scopes, type ScopeDefinition } from "@common/definitions/items/scopes";
 import { Skins, type SkinDefinition } from "@common/definitions/items/skins";
 import { Throwables, type ThrowableDefinition } from "@common/definitions/items/throwables";
@@ -113,7 +114,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     initializedSpecialSpectatingCase = false;
 
-    readonly loadout: {
+    loadout: {
         badge?: BadgeDefinition
         skin: SkinDefinition
         emotes: ReadonlyArray<EmoteDefinition | undefined>
@@ -792,7 +793,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         this.updateAndApplyModifiers();
     }
 
-    giveGun(roleGun: ReifiableDef<GunDefinition> | {
+    giveGun(roleGun: ReferenceTo<GunDefinition> | {
                   idString: ReferenceTo<GunDefinition>;
                   preloadAmmo?: number;
                   fillInv?: boolean;
@@ -2451,7 +2452,7 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
     promoteTo(role: string): void {
         const roleDef = PromotionalRoles.fromString(role);
-        if (this.promotionalRole === roleDef) return;
+        if (roleDef === undefined || this.promotionalRole === roleDef) return;
 
         // previous role clean
         // dont call demote() plz plz
@@ -2472,11 +2473,19 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
 
         const { perks, skin, vest, helmet, backpack, gun, melee, inventory } = roleDef;
 
-        // color name
-        /* if (roleDef.killFeed?.color !== undefined) {
-            this.hasColor = true;
-            this.nameColor = roleDef.killFeed.color;
-        } */
+        // color name and badge
+        if (roleDef.killFeed?.color !== undefined || roleDef.killFeed?.badge) {
+            if (roleDef.killFeed.color !== undefined) {
+                this.hasColor = true;
+                this.nameColor = roleDef.killFeed.color;
+            }
+            if (roleDef.killFeed.badge) {
+                this.loadout.badge = Badges.fromString(roleDef.killFeed.badge)
+            }
+            if (!this.game.newPlayers.includes(this)) {
+                this.game.newPlayers.push(this);
+            }
+        }
 
         // giving players stuffs
         if (perks) {
@@ -2510,19 +2519,26 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
             this.inventory.addOrReplaceWeapon(2, Melees.reify(melee));
         }
         if (inventory) {
-            for (const item of inventory.healingItem ?? []) {
-                this.inventory.items.incrementItem(item.idString, item.amount);
+            for (const item in inventory.healingItem) {
+                this.inventory.items.incrementItem(item, inventory.healingItem[item]);
             }
-            for (const item of inventory.ammo ?? []) {
-                this.inventory.items.incrementItem(item.idString, item.amount);
+            for (const item in inventory.ammo) {
+                this.inventory.items.incrementItem(item, inventory.ammo[item]);
             }
             for (const item of inventory.scope ?? []) {
                 this.inventory.items.setItem(item, 1);
             }
-            for (const item of inventory.throwable ?? []) {
-                this.giveThrowable(item.idString, item.amount);
+            for (const item in inventory.throwable) {
+                this.giveThrowable(item, inventory.throwable[item]);
             }
             this.dirty.items = true;
+        }
+        if (roleDef.killFeed?.promote) {
+            const packet = PromotionalRolePacket.create();
+            packet.playerId = this.id;
+            packet.promote = true;
+            packet.role = roleDef;
+            this.game.packets.push(packet);
         }
 
         this.health = this.maxHealth;
@@ -3154,7 +3170,17 @@ export class Player extends BaseGameObject.derive(ObjectCategory.Player) {
         this.canDespawn = false;
         this._team?.setDirty();
 
-        if (this.promotionalRole) this.demote();
+        if (this.promotionalRole) {
+            if (this.promotionalRole.killFeed?.dead) {
+                const rolePacket = PromotionalRolePacket.create();
+                rolePacket.playerId = this.id;
+                if (source instanceof Player) rolePacket.attackerId = source.id;
+                rolePacket.promote = false;
+                rolePacket.role = this.promotionalRole;
+                this.game.packets.push(rolePacket);
+            }
+            this.demote();
+        }
         if (this.mapIndicator) this.mapIndicator.dead = true;
 
         const action = this.beingRevivedBy?.action;

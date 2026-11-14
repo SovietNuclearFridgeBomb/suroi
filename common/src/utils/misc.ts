@@ -348,6 +348,7 @@ export function groupArray<In, Out>(target: In[], picker: (ele: In, index: numbe
  * Find and remove an element from an array.
  * @param array The array to iterate over.
  * @param value The value to check for.
+ * @returns Index of the removed item in the unmodified list.
  */
 export function removeFrom<T>(array: T[], value: NoInfer<T>): number {
     const index = array.indexOf(value);

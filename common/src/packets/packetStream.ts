@@ -8,6 +8,7 @@ import { KillPacket } from "./killPacket";
 import { MapPacket } from "./mapPacket";
 import { DataSplit, MutablePacketDataIn, PacketDataOut } from "./packet";
 import { PickupPacket } from "./pickupPacket";
+import { PromotionalRolePacket } from "./promotionalRolePacket";
 import { ReportPacket } from "./reportPacket";
 import { SpectatePacket } from "./spectatePacket";
 import { UpdatePacket } from "./updatePacket";
@@ -20,6 +21,7 @@ export const Packets = [
     KillPacket,
     MapPacket,
     PickupPacket,
+    PromotionalRolePacket,
     ReportPacket,
     SpectatePacket,
     UpdatePacket,

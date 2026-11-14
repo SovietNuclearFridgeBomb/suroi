@@ -246,6 +246,11 @@
 "kf_saw_down": "<player> was knocked out by a saw"
 "kf_impact_of": "the impact of " // space is a must
 "kf_disconnected": "<player> disconnected"
+"kf_promotion": "<player> promoted to <role>!"
+"kf_demotion": "<player> killed the <role>!"
+"kf_demotion_no_attacker": "The <role> is dead!"
+"kf_demotion_suicide": "The <role> killed themselves!"
+"promotion_notif": "You got promoted to <role>!"
 "finally": "finally"
 "with": "with"
 "you": "You"

@@ -1,6 +1,6 @@
 import { GameConstants, ObjectCategory } from "@common/constants";
 import { DEFAULT_INVENTORY } from "@common/defaultInventory";
-import { type BadgeDefinition } from "@common/definitions/badges";
+import { Badges, type BadgeDefinition } from "@common/definitions/badges";
 import { getBadgeIdString, isEmoteBadge, type EmoteDefinition } from "@common/definitions/emotes";
 import { Ammos } from "@common/definitions/items/ammos";
 import { HealingItems } from "@common/definitions/items/healingItems";
@@ -37,6 +37,7 @@ import { PerkManager } from "./perkManager";
 import { ScreenRecordManager } from "./screenRecordManager";
 import { SoundManager } from "./soundManager";
 import { pickRandomInArray } from "@common/utils/random";
+import { type PromotionalRoleData } from "@common/packets/promotionalRolePacket";
 
 function safeRound(value: number): number {
     if (0 < value && value <= 1) return 1;
@@ -872,7 +873,7 @@ class UIManagerClass {
 
                 if (oldPerks[i] !== newPerk) {
                     // this.perkTimers?.delete(oldPerks[i]);
-                    this.updatePerkSlot(newPerk, i, data.perksDroppability[i]);
+                    this.updatePerkSlot(newPerk, i, perksDroppability[i]);
                     this.queuePerkAnim(newPerk);
                 }
             }
@@ -1267,7 +1268,7 @@ class UIManagerClass {
                     <strong class="perk-name">${perkName}</strong>
                 `)
                 .fadeIn(PERK_MESSAGE_FADE_TIME);
-        const flashAnimationDuration = 3000; // ms
+        const flashAnimationDuration = 2500; // ms
         this._currentQueueTimeout = window.setTimeout(() => {
             inventoryMsg.fadeOut(PERK_MESSAGE_FADE_TIME, () => {
                 this.perkAnimActive = undefined;
@@ -1283,10 +1284,53 @@ class UIManagerClass {
     }
     clearPerkAnim() {
         if (this.perkAnimActive) {
+            clearTimeout(this._currentQueueTimeout);
             this.ui.inventoryMsg.stop(true, true)
             this.perkAnimActive = undefined;
         }
         this._perkQueue = []
+    }
+    
+    gasMsgFadeTimeout: number | undefined;
+    processPromotionalRolePacket(data: PromotionalRoleData) {
+        const { role, promote, playerId, attackerId } = data
+        let iconText: string = ""
+        let icon
+
+        if (promote) { // ignore role.killFeed is possibly undef cuz packet is sent only on role.killFeed?.promote/dead
+            if (role.killFeed.badge) icon = Badges.fromString(role.killFeed.badge)
+            iconText = icon ? html`<img class="badge-icon" src="./img/game/${isEmoteBadge(icon) ? "emotes" : "badges"}/${getBadgeIdString(icon)}.svg" alt="${icon.name} badge">` : "";
+            if (role.sound?.promote) SoundManager.play(role.sound.promote)
+        } else {
+            iconText = html`<img class="kill-icon" src="./img/misc/skull_icon.svg" alt="Skull">`
+            if (role.sound?.demote) SoundManager.play(role.sound.demote)
+        }
+
+        let messageText: string = ""
+        if (promote) {
+            const player = this.getRawPlayerName(playerId)
+            messageText = translate("kf_promotion", { player, role: role.name });
+        }
+        else if (attackerId !== undefined) {
+            if (attackerId === playerId) {
+                messageText = translate("kf_demotion_suicide", { role: role.name })
+            } else {
+                const player = this.getRawPlayerName(attackerId)
+                messageText = translate("kf_demotion", { player, role: role.name })
+            }
+        } else {
+            messageText = translate("kf_demotion_no_attacker", { role: role.name })
+        }
+
+        this._addKillFeedMessage(iconText + $<HTMLSpanElement>("<span>").html(messageText).css({color: role.killFeed.color ? "#" + role.killFeed.color.toString(16) : ""}).prop("outerHTML"), [])
+        
+        // shhhhhhhhh hush tell no one i used gas message for promotion notif 👀
+        
+        if (promote && playerId === Game.activePlayerID) {
+            this.ui.gasMsgInfo.text(translate("promotion_notif", { role: role.name })).css("color", "gold");
+            clearTimeout(this.gasMsgFadeTimeout)
+            UIManager.gasMsgFadeTimeout = setTimeout(() => this.ui.gasMsg.fadeOut(1000), 5000) as unknown as number;
+        }
     }
 
     updateItems(): void {

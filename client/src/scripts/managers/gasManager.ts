@@ -49,8 +49,6 @@ class GasManagerClass {
         };
     }
 
-    private _gasMsgFadeTimeout: number | undefined;
-
     time: number | undefined;
 
     updateFrom(data: UpdateDataOut): void {
@@ -108,8 +106,8 @@ class GasManagerClass {
                     this._ui.msgText.css("color", "white");
                 } else {
                     this._ui.msgText.css("color", "cyan");
-                    clearTimeout(this._gasMsgFadeTimeout);
-                    this._gasMsgFadeTimeout = setTimeout(() => this._ui.msgContainer.fadeOut(1000), 5000) as unknown as number;
+                    clearTimeout(UIManager.gasMsgFadeTimeout);
+                    UIManager.gasMsgFadeTimeout = setTimeout(() => this._ui.msgContainer.fadeOut(1000), 5000) as unknown as number;
                 }
             }
         }

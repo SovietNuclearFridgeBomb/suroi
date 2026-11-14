@@ -69,20 +69,6 @@ export default class JuggernautPlugin extends GamePlugin {
 
         this.juggernautId = player.id;
 
-        player.addPerk("experimental_forcefield", false);
-        player.addPerk("tactical_reload", false);
-        player.addPerk("extended_mags", false);
-        player.addPerk("flechettes", false);
-
-        player.inventory.helmet = Armors.fromString("tactical_helmet");
-        player.inventory.vest = Armors.fromString("tactical_vest");
-        player.inventory.backpack = Backpacks.fromString("tactical_pack");
-
-        player.inventory.dropWeapons();
-        player.giveGun("mg5");
-        player.giveGun("negev");
-
-        player.dirty.items = true;
-        player.dirty.weapons = true;
+        player.promoteTo("juggernaut")
     }
 }

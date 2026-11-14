@@ -1043,6 +1043,10 @@ export const Game = new (class Game {
                 }
                 break;
             }
+            case PacketType.PromotionalRole: {
+                UIManager.processPromotionalRolePacket(packet)
+                break
+            }
         }
     }
 

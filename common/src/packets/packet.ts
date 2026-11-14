@@ -12,6 +12,7 @@ export enum PacketType {
     Kill,
     Map,
     Pickup,
+    PromotionalRole,
     Report,
     Spectate,
     Update,
