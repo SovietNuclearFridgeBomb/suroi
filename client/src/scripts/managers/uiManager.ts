@@ -1,6 +1,6 @@
 import { GameConstants, ObjectCategory } from "@common/constants";
 import { DEFAULT_INVENTORY } from "@common/defaultInventory";
-import { type BadgeDefinition } from "@common/definitions/badges";
+import { Badges, type BadgeDefinition } from "@common/definitions/badges";
 import { getBadgeIdString, isEmoteBadge, type EmoteDefinition } from "@common/definitions/emotes";
 import { Ammos } from "@common/definitions/items/ammos";
 import { HealingItems } from "@common/definitions/items/healingItems";
@@ -37,6 +37,7 @@ import { PerkManager } from "./perkManager";
 import { ScreenRecordManager } from "./screenRecordManager";
 import { SoundManager } from "./soundManager";
 import { pickRandomInArray } from "@common/utils/random";
+import { type PromotionalRoleData } from "@common/packets/promotionalRolePacket";
 
 function safeRound(value: number): number {
     if (0 < value && value <= 1) return 1;
@@ -861,6 +862,7 @@ class UIManagerClass {
         if (perks) {
             const oldPerks = Array.from(PerkManager.perks);
             PerkManager.perks = perks;
+            this.updatePerkQueue();
             for (let i = 0; i < GameConstants.player.maxPerks; i++) {
                 const newPerk = perks[i];
 
@@ -871,7 +873,8 @@ class UIManagerClass {
 
                 if (oldPerks[i] !== newPerk) {
                     // this.perkTimers?.delete(oldPerks[i]);
-                    this.updatePerkSlot(newPerk, i, data.perksDroppability[i]);
+                    this.updatePerkSlot(newPerk, i, perksDroppability[i]);
+                    this.queuePerkAnim(newPerk);
                 }
             }
         }
@@ -1160,27 +1163,7 @@ class UIManagerClass {
 
         const folder = PerkCategories[perkDef.category].toLowerCase(),
             perkSrc = `./img/game/perks/${folder}/${perkDef.idString}.svg`,
-            lootBg = `./img/game/loot/loot_background_${perkDef.mechanical ? "mechanical_perk" : "perk"}.svg`,
             perkName = translate(perkDef.idString as unknown as TranslationKeys);
-
-        const { killMsgModal, inventoryMsg, interactMsg } = this.ui;
-
-        if (!Game.spectating) {
-            clearTimeout(Game.inventoryMsgTimeout);
-            killMsgModal.fadeOut(PERK_MESSAGE_FADE_TIME);
-            interactMsg.fadeOut(PERK_MESSAGE_FADE_TIME);
-
-            inventoryMsg
-                .stop(true, true)
-                .fadeOut(0)
-                .html(`
-                    <div id="perk" style="background-image: url(${lootBg});">
-                        <img class="perk-img" src="${perkSrc}" draggable="false"/>
-                    </div>
-                    <strong class="perk-name">${perkName}</strong>
-                `)
-                .fadeIn(PERK_MESSAGE_FADE_TIME);
-        }
 
         const container = this._perkSlots[index] ??= $<HTMLDivElement>(`#perk-slot-${index}`);
 
@@ -1240,8 +1223,114 @@ class UIManagerClass {
 
         this._animationTimeouts[index] = window.setTimeout(() => {
             container.css("animation", "none");
-            if (!Game.spectating) inventoryMsg.fadeOut(PERK_MESSAGE_FADE_TIME);
         }, flashAnimationDuration);
+    }
+
+    perkAnimActive: PerkDefinition | undefined = undefined;
+    private _perkQueue: PerkDefinition[] = [];
+    private _currentQueueTimeout: number | undefined;
+    updatePerkQueue(): void {
+        this._perkQueue = this._perkQueue.filter(perk => PerkManager.has(perk));
+        if (!PerkManager.has(this.perkAnimActive)) this.skipPerkAnim() // skips the current perk anim if the perk is removed mid anim
+    }
+    queuePerkAnim(perkDef: PerkDefinition): void {
+        const { killMsgModal, interactMsg } = this.ui;
+        if (!Game.spectating) {
+            clearTimeout(Game.inventoryMsgTimeout);
+            killMsgModal.fadeOut(PERK_MESSAGE_FADE_TIME);
+            interactMsg.fadeOut(PERK_MESSAGE_FADE_TIME);
+        }
+        this._perkQueue.push(perkDef)
+        this.cyclePerkAnim()
+    }
+    cyclePerkAnim(): void {
+        if (this.perkAnimActive) return
+        if (this._perkQueue.length === 0 || Game.spectating) {
+            this.perkAnimActive = undefined;
+            this._perkQueue = []
+            return
+        }
+        const inventoryMsg = this.ui.inventoryMsg;
+        const perkDef = this._perkQueue.shift();
+        this.perkAnimActive = perkDef;
+        const folder = PerkCategories[perkDef.category].toLowerCase(),
+            perkSrc = `./img/game/perks/${folder}/${perkDef.idString}.svg`,
+            lootBg = `./img/game/loot/loot_background_${perkDef.mechanical ? "mechanical_perk" : "perk"}.svg`,
+            perkName = translate(perkDef.idString as unknown as TranslationKeys);
+        clearTimeout(Game.inventoryMsgTimeout);
+        inventoryMsg
+                .stop(true, true)
+                .fadeOut(0)
+                .html(`
+                    <div id="perk" style="background-image: url(${lootBg});">
+                        <img class="perk-img" src="${perkSrc}" draggable="false"/>
+                    </div>
+                    <strong class="perk-name">${perkName}</strong>
+                `)
+                .fadeIn(PERK_MESSAGE_FADE_TIME);
+        const flashAnimationDuration = 3000; // ms
+        this._currentQueueTimeout = window.setTimeout(() => {
+            inventoryMsg.fadeOut(PERK_MESSAGE_FADE_TIME, () => {
+                this.perkAnimActive = undefined;
+                this.cyclePerkAnim() // mile high run that shit back bitch im stylish 🔥
+            });
+        }, flashAnimationDuration);
+    }
+    skipPerkAnim(): void{
+        clearTimeout(this._currentQueueTimeout);
+        this.ui.inventoryMsg.stop(true, true);
+        this.perkAnimActive = undefined;
+        this.cyclePerkAnim();
+    }
+    clearPerkAnim() {
+        if (this.perkAnimActive) {
+            clearTimeout(this._currentQueueTimeout);
+            this.ui.inventoryMsg.stop(true, true)
+            this.perkAnimActive = undefined;
+        }
+        this._perkQueue = []
+    }
+    
+    gasMsgFadeTimeout: number | undefined;
+    processPromotionalRolePacket(data: PromotionalRoleData) {
+        const { role, promote, playerId, attackerId } = data
+        let iconText: string = ""
+        let icon
+
+        if (promote) { // ignore role.killFeed is possibly undef cuz packet is sent only on role.killFeed?.promote/dead
+            if (role.killFeed.badge) icon = Badges.fromString(role.killFeed.badge)
+            iconText = icon ? html`<img class="badge-icon" src="./img/game/${isEmoteBadge(icon) ? "emotes" : "badges"}/${getBadgeIdString(icon)}.svg" alt="${icon.name} badge">` : "";
+            if (role.sound?.promote) SoundManager.play(role.sound.promote)
+        } else {
+            iconText = html`<img class="kill-icon" src="./img/misc/skull_icon.svg" alt="Skull">`
+            if (role.sound?.demote) SoundManager.play(role.sound.demote)
+        }
+
+        let messageText: string = ""
+        if (promote) {
+            const player = this.getRawPlayerName(playerId)
+            messageText = translate("kf_promotion", { player, role: role.name });
+        }
+        else if (attackerId !== undefined) {
+            if (attackerId === playerId) {
+                messageText = translate("kf_demotion_suicide", { role: role.name })
+            } else {
+                const player = this.getRawPlayerName(attackerId)
+                messageText = translate("kf_demotion", { player, role: role.name })
+            }
+        } else {
+            messageText = translate("kf_demotion_no_attacker", { role: role.name })
+        }
+
+        this._addKillFeedMessage(iconText + $<HTMLSpanElement>("<span>").html(messageText).css({color: role.killFeed.color ? "#" + role.killFeed.color.toString(16) : ""}).prop("outerHTML"), [])
+        
+        // shhhhhhhhh hush tell no one i used gas message for promotion notif 👀
+        
+        if (promote && playerId === Game.activePlayerID && !Game.spectating) {
+            this.ui.gasMsgInfo.text(translate("promotion_notif", { role: role.name })).css("color", "gold");
+            clearTimeout(this.gasMsgFadeTimeout)
+            UIManager.gasMsgFadeTimeout = setTimeout(() => this.ui.gasMsg.fadeOut(1000), 5000) as unknown as number;
+        }
     }
 
     updateItems(): void {
@@ -1854,6 +1943,7 @@ class UIManagerClass {
         this.clearTeammateCache();
         this.clearWeaponCache();
         this.reportedPlayerIDs.clear();
+        this.clearPerkAnim();
         this.killLeaderCache = undefined;
         this.oldKillLeaderId = undefined;
         this.skinID = undefined;
